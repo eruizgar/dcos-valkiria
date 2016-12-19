@@ -1,8 +1,0 @@
-docopt
-dcos
-
-[dev]
-check-manifest
-
-[test]
-coverage
