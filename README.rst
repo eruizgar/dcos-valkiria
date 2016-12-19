@@ -1,10 +1,7 @@
 DCOS Valkiria Subcommand
 ==========================
 
-.. image:: https://github.com/stratio/dcos-command.svg
-    :target: https://github.com/stratio/dcos-command
-
-Basic DCOS subcommand
+Valkiria DCOS subcommand
 
 Setup
 -----
@@ -31,7 +28,7 @@ Configure Environment and Run
 
 #. TODO: Talk about how to configure the root dcos cli
 
-#. :code:`source` the setup file to add the :code:`dcos-command` command line interface to your
+#. :code:`source` the setup file to add the :code:`dcos-valkiria` command line interface to your
    :code:`PATH`::
 
     source env/bin/activate
