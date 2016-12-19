@@ -1,0 +1,7 @@
+<suite name="DCOS cli" verbose="10" parallel="instances" thread-count="1">
+	<test name="dcos cli acceptance tests">
+		<packages>
+			<package name="com.stratio.paas.testsAT.*"/>
+		</packages>
+	</test>
+</suite>

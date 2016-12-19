@@ -1,0 +1,12 @@
+README.rst
+setup.cfg
+setup.py
+dcos_valkiria/__init__.py
+dcos_valkiria/cli.py
+dcos_valkiria/constants.py
+dcos_valkiria.egg-info/PKG-INFO
+dcos_valkiria.egg-info/SOURCES.txt
+dcos_valkiria.egg-info/dependency_links.txt
+dcos_valkiria.egg-info/entry_points.txt
+dcos_valkiria.egg-info/requires.txt
+dcos_valkiria.egg-info/top_level.txt
