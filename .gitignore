@@ -11,10 +11,7 @@ testsAT/target
 coverage-reports
 failsafe-reports
 pylint-report.txt
-.idea/dcos-valkiria.iml
-.idea/misc.xml
-.idea/modules.xml
-.idea/vcs.xml
+.idea
 coverage-reports/
 coverage.ut
 surefire-reports/

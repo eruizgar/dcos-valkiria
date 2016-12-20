@@ -93,17 +93,17 @@ def _cmds():
 
     return [
         cmds.Command(
-            hierarchy=['command', '--info'],
+            hierarchy=['valkiria', '--info'],
             arg_keys=[],
             function=_info),
 
         cmds.Command(
-            hierarchy=['command', 'ssh'],
+            hierarchy=['valkiria', 'ssh'],
             arg_keys=['--leader', '--mesos-id', '--option', '--config-file',
                       '--user', '--master-proxy', '<command>'],
             function=_ssh),
         cmds.Command(
-            hierarchy=['command', 'service'],
+            hierarchy=['valkiria', 'service'],
             arg_keys=['--leader', '--mesos-id', '--option', '--config-file',
                       '--user', '--master-proxy', '<command>'],
             function=_ssh),
