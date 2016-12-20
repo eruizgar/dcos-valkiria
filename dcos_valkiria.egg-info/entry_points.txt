@@ -1,3 +1,0 @@
-[console_scripts]
-dcos-valkiria = dcos_valkiria.cli:main
-

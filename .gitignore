@@ -1,0 +1,17 @@
+env/
+build/
+dist/
+*.egg-info/
+*.pyc
+.tox/
+.coverage
+.cache
+testsAT/_ajdump
+testsAT/target
+coverage-reports
+failsafe-reports
+pylint-report.txt
+.idea
+coverage-reports/
+coverage.ut
+surefire-reports/
