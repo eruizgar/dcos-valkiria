@@ -111,7 +111,7 @@ def _install(ips, user, option, config_file):
     ssh_options = util.get_ssh_options(config_file, option)
     for ip in _get_ips_list(ips):
         cmd = '''ssh {2}{0}@{1} 'curl -O {3};
-                tar -xvf {4}; if [ ! -d {6} ]; then mkdir -p {6};fi ;cp {5} {6}; rm -rf root/; rm {4};
+                tar -xvf {4}; if [ ! -d {6} ]; then mkdir -p {6};fi ;cp {5} {6}; rm -rf {7}; rm {4};
                 nohup {6}/valkiria a > valkiria.out 2> valkiria.log < /dev/null &' '''.format(
             user,
             ip,
@@ -119,7 +119,8 @@ def _install(ips, user, option, config_file):
             constants.url_install,
             constants.name,
             constants.previous_path,
-            constants.end_path)
+            constants.end_path,
+            constants.previous_path.split('/')[0])
         emitter.publish(DefaultError("Running `{}`".format(cmd)))
         subprocess.call(cmd, shell=True)
     return 0
@@ -138,7 +139,6 @@ def _tasks(ips, user, option, config_file):
      :returns: process return code
     """
     ssh_options = util.get_ssh_options(config_file, option)
-
     table = PrettyTable(['Ip', 'TaskId'])
     for ip in _get_ips_list(ips):
         cmd = '''ssh {2}{0}@{1} 'curl -sb -H {3}' '''.format(
@@ -148,7 +148,7 @@ def _tasks(ips, user, option, config_file):
             constants.url_list)
         emitter.publish(DefaultError("Running `{}`".format(cmd)))
         try:
-            resp = json.loads(subprocess.check_output(cmd, shell=True))
+            resp = json.loads(subprocess.check_output(cmd, shell=True).decode('utf-8'))
             for service_type in constants.services_type:
                 try:
                     xs = resp[service_type]
