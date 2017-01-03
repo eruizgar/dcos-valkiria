@@ -1,4 +1,4 @@
-'''Description:
+"""Description:
     Administer and manage commands in DCOS cluster nodes.
 
 Usage:
@@ -6,11 +6,11 @@ Usage:
     dcos valkiria install [--option SSHOPT=VAL ...]
             [--config-file=<path>]
             [--user=<user>]
-            (--ips=<ip-or-hostname>)
+            (--ips=<"ip-or-iplist">)
     dcos valkiria task [--option SSHOPT=VAL ...]
             [--config-file=<path>]
             [--user=<user>]
-            (--ips=<ip-or-hostname>)
+            (--ips=<"ip-or-iplist">)
 
 Commands:
     install
@@ -28,15 +28,14 @@ Options:
     --option SSHOPT=VAL
         The SSH options. For information, enter `man ssh_config` in your
         terminal.
-    --ips=<ip-or-hostname>
-        List of ips where you want to install valkiria.
+    --ips=<"ip-or-iplist">
+        Required: The ip list string in format "IP1,IP2..."
     --user=<user>
         The SSH user, where the default user [default: root].
     --version
         Print version information.
-'''
+"""
 import json
-import re
 import subprocess
 import docopt
 from dcos import cmds, emitting, util
@@ -140,6 +139,7 @@ def _tasks(ips, user, option, config_file):
     """
     ssh_options = util.get_ssh_options(config_file, option)
     table = PrettyTable(['Ip', 'TaskId'])
+    print(str(ips))
     for ip in _get_ips_list(ips):
         cmd = '''ssh {2}{0}@{1} 'curl -sb -H {3}' '''.format(
             user,
@@ -149,6 +149,7 @@ def _tasks(ips, user, option, config_file):
         emitter.publish(DefaultError("Running `{}`".format(cmd)))
         try:
             resp = json.loads(subprocess.check_output(cmd, shell=True).decode('utf-8'))
+            services_type_without_tasks = 0
             for service_type in constants.services_type:
                 try:
                     xs = resp[service_type]
@@ -157,13 +158,13 @@ def _tasks(ips, user, option, config_file):
                             table.add_row([ip, x['Name']])
                         elif service_type == 'service' or service_type == 'docker':
                             table.add_row([ip, x['TaskName']])
-                        else:
-                            table.add_row([ip, 'No {} tasks running'.format(service_type)])
                 except KeyError:
-                    emitter.publish(DefaultError("{0} not contain`{1}` tasks running".format(ip, service_type)))
+                    if services_type_without_tasks == 2:
+                        table.add_row([ip, 'No tasks running'])
+                    else:
+                        services_type_without_tasks += 1
         except subprocess.CalledProcessError:
             table.add_row([ip, 'IP not valid'])
-
     return table
 
 
@@ -171,12 +172,31 @@ def _get_ips_list(ips):
     """
     Convert argument ips in a iterable list of ips.
     :param ips: ip to connect
-    :rtype: ips: list(str)
+    :rtype: ips: str
     """
     if not ips:
         emitter.publish(DefaultError("--ips requires argument"))
         return 1
-    return re.findall(r'''\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b''', ips)
+    ip_list = ips.replace(" ", "").split(",")
+    valid_ips = []
+    for ip in ip_list:
+        if _valid_ip_format(ip):
+            valid_ips.append(ip)
+        else:
+            emitter.publish("[[{}]] is a not valid ip format.".format(ip))
+    return valid_ips
+
+
+def _valid_ip_format(addr):
+    try:
+        addr = addr.strip().split(".")
+    except AttributeError:
+        return False
+    try:
+        return len(addr) == 4 and all(octet.isdigit() and int(octet) < 256
+                                      for octet in addr)
+    except ValueError:
+        return False
 
 
 if __name__ == "__main__":
