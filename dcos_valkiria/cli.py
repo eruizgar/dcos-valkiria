@@ -11,6 +11,11 @@ Usage:
             [--config-file=<path>]
             [--user=<user>]
             (--ips=<"ip-or-iplist">)
+    dcos valkiria kill [--option SSHOPT=VAL ...]
+            [--config-file=<path>]
+            [--user=<user>]
+            (--ip=<ip-or-hostname>)
+            (--task-id=<task-id>)
 
 Commands:
     install
@@ -32,6 +37,10 @@ Options:
         Required: The ip list string in format "IP1,IP2..."
     --user=<user>
         The SSH user, where the default user [default: root].
+    --ip=<ip-or-hostname>
+        The ip where you want to kill the task
+    --task-id=<task-id>
+        The id of the task that you want to kill.
     --version
         Print version information.
 """
@@ -60,7 +69,6 @@ def _main():
         doc=__doc__,
         version="dcos-valkiria version {}".format(constants.version)
     )
-
     return cmds.execute(_cmds(), args)
 
 
@@ -84,6 +92,11 @@ def _cmds():
             hierarchy=['valkiria', 'task'],
             arg_keys=['--ips', '--user', '--option', '--config-file'],
             function=_tasks),
+
+        cmds.Command(
+            hierarchy=['valkiria', 'kill'],
+            arg_keys=['--ip', '--user', '--option', '--config-file', '--task-id'],
+            function=_kill),
     ]
 
 
@@ -107,6 +120,7 @@ def _install(ips, user, option, config_file):
      :rtype: int
      :returns: process return code
      """
+    option = _set_default_timeout(option)
     ssh_options = util.get_ssh_options(config_file, option)
     for ip in _get_ips_list(ips):
         cmd = '''ssh {2}{0}@{1} 'curl -O {3};
@@ -137,9 +151,9 @@ def _tasks(ips, user, option, config_file):
      :rtype: int
      :returns: process return code
     """
+    option = _set_default_timeout(option)
     ssh_options = util.get_ssh_options(config_file, option)
     table = PrettyTable(['Ip', 'TaskId'])
-    print(str(ips))
     for ip in _get_ips_list(ips):
         cmd = '''ssh {2}{0}@{1} 'curl -sb -H {3}' '''.format(
             user,
@@ -168,23 +182,72 @@ def _tasks(ips, user, option, config_file):
     return table
 
 
+def _kill(ip, user, option, config_file, task_id):
+    """SSH into a DCOS node using the IP addresses found in master's
+       state.json
+     :param ip: ip to connect
+     :type ip: [str]
+     :param option: SSH option
+     :type option: [str]
+     :param user: SSH user
+     :type user: str | None
+     :rtype: int
+     :returns: process return code
+    """
+    option = _set_default_timeout(option)
+    ssh_options = util.get_ssh_options(config_file, option)
+    table = PrettyTable(header=False)
+    kill_options = "'{" + ''' "name":"{0}","killExecutor":0,"serviceType":0 '''.format(task_id).replace("\"",
+                                                                                                        "\\\"") + "}'"
+    if _valid_ip_format(ip):
+        cmd = '''ssh {2}{0}@{1} "curl  -sb -H -X POST -d {3} http://127.0.0.1:9050/api/v1/valkiria " '''.format(
+            user,
+            ip,
+            ssh_options,
+            kill_options)
+        emitter.publish(DefaultError("Running `{}`".format(cmd)))
+        try:
+            resp = json.loads(subprocess.check_output(cmd, shell=True).decode('utf-8'))
+            if resp['status'] == 'Success':
+                table.add_row([ip, task_id, constants.killed_message, resp['process'][0]['ChaosTimeStamp']])
+            elif task_id == '':
+                emitter.publish(DefaultError("--task-id requires argument"))
+                return 1
+            else:
+                table.add_row([ip, task_id, constants.task_not_found, '----'])
+        except subprocess.CalledProcessError:
+            emitter.publish(DefaultError('There is no such IP in the cluster'))
+            return 1
+        return table
+    else:
+        emitter.publish("[[{}]] invalid ip format.".format(ip))
+
+
+def _set_default_timeout(option):
+    if not option:
+        return constants.default_timeout
+
+
 def _get_ips_list(ips):
     """
     Convert argument ips in a iterable list of ips.
     :param ips: ip to connect
     :rtype: ips: str
     """
-    if not ips:
+    try:
+        ip_list = ips.replace(" ", "").split(",")
+        valid_ips = []
+        for ip in ip_list:
+            if _valid_ip_format(ip):
+                valid_ips.append(ip)
+            elif ip == '':
+                emitter.publish(DefaultError("--ips requires argument"))
+            else:
+                emitter.publish("[[{}]] invalid ip format.".format(ip))
+        return valid_ips
+    except AttributeError:
         emitter.publish(DefaultError("--ips requires argument"))
         return 1
-    ip_list = ips.replace(" ", "").split(",")
-    valid_ips = []
-    for ip in ip_list:
-        if _valid_ip_format(ip):
-            valid_ips.append(ip)
-        else:
-            emitter.publish("[[{}]] is a not valid ip format.".format(ip))
-    return valid_ips
 
 
 def _valid_ip_format(addr):
