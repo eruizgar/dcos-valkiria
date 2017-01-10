@@ -7,6 +7,10 @@ Usage:
             [--config-file=<path>]
             [--user=<user>]
             (--ips=<"ip-or-iplist">)
+    dcos valkiria uninstall [--option SSHOPT=VAL ...]
+            [--config-file=<path>]
+            [--user=<user>]
+            (--ips=<"ip-or-iplist">)
     dcos valkiria task [--option SSHOPT=VAL ...]
             [--config-file=<path>]
             [--user=<user>]
@@ -16,14 +20,35 @@ Usage:
             [--user=<user>]
             (--ip=<ip-or-hostname>)
             (--task-id=<task-id>)
+    dcos valkiria start [--option SSHOPT=VAL ...]
+            [--config-file=<path>]
+            [--user=<user>]
+            (--ips=<"ip-or-iplist">)
+    dcos valkiria stop [--option SSHOPT=VAL ...]
+            [--config-file=<path>]
+            [--user=<user>]
+            (--ips=<"ip-or-iplist">)
+    dcos valkiria status [--option SSHOPT=VAL ...]
+            [--config-file=<path>]
+            [--user=<user>]
+            (--ips=<"ip-or-iplist">)
 
 Commands:
     install
-        Establish an SSH connection to the master or agent nodes and install
-        valkiria in the ip passed.
+        Establish an SSH connection to the master or agent nodes and install Valkiria on them.
+    uninstall
+        Establish an SSH connection to the master or agent nodes and uninstall Valkiria on them
     tasks
-        Establish an SSH connection to the master or agent nodes and list
-        the killables tasks.
+        Establish an SSH connection to the master or agent nodes and list the killables tasks.
+    kill
+        Establish an SSH connection to the master or agent nodes and kill the task with a specific taskId.
+    start
+        Establish an SSH connection to the master or agent nodes and start the Valkiria agent process on them.
+    stop
+        Establish an SSH connection to the master or agent nodes and stop the Valkiria agent process on them.
+    status
+        Establish an SSH connection to the master or agent nodes and get the status of the Valkiria agent process on them.
+
 
 Options:
     -h, --help
@@ -89,6 +114,11 @@ def _cmds():
             function=_install),
 
         cmds.Command(
+            hierarchy=['valkiria', 'uninstall'],
+            arg_keys=['--ips', '--user', '--option', '--config-file'],
+            function=_uninstall),
+
+        cmds.Command(
             hierarchy=['valkiria', 'task'],
             arg_keys=['--ips', '--user', '--option', '--config-file'],
             function=_tasks),
@@ -97,6 +127,21 @@ def _cmds():
             hierarchy=['valkiria', 'kill'],
             arg_keys=['--ip', '--user', '--option', '--config-file', '--task-id'],
             function=_kill),
+
+        cmds.Command(
+            hierarchy=['valkiria', 'start'],
+            arg_keys=['--ips', '--user', '--option', '--config-file'],
+            function=_start),
+
+        cmds.Command(
+            hierarchy=['valkiria', 'stop'],
+            arg_keys=['--ips', '--user', '--option', '--config-file'],
+            function=_stop),
+
+        cmds.Command(
+            hierarchy=['valkiria', 'status'],
+            arg_keys=['--ips', '--user', '--option', '--config-file'],
+            function=_status),
     ]
 
 
@@ -123,9 +168,14 @@ def _install(ips, user, option, config_file):
     option = _set_default_timeout(option)
     ssh_options = util.get_ssh_options(config_file, option)
     for ip in _get_ips_list(ips):
-        cmd = '''ssh {2}{0}@{1} 'curl -O {3};
-                tar -xvf {4}; if [ ! -d {6} ]; then mkdir -p {6};fi ;cp {5} {6}; rm -rf {7}; rm {4};
-                nohup {6}/valkiria a > valkiria.out 2> valkiria.log < /dev/null &' '''.format(
+        cmd = '''ssh {2}{0}@{1} ' if [ ! -d {6} ]; then
+                curl -O {3}; tar -xvf {4};
+                mkdir -p {6}; cp {5} {6}; rm -rf {7}; rm {4};
+                nohup {6}/valkiria a 2> valkiria.log > /dev/null 2>&1 &
+                echo $! > valkiria.pid
+                else
+                echo Valkiria is already installed in {1}
+                fi ' '''.format(
             user,
             ip,
             ssh_options,
@@ -134,7 +184,118 @@ def _install(ips, user, option, config_file):
             constants.previous_path,
             constants.end_path,
             constants.previous_path.split('/')[0])
-        emitter.publish(DefaultError("Running `{}`".format(cmd)))
+        subprocess.call(cmd, shell=True)
+    return 0
+
+
+def _uninstall(ips, user, option, config_file):
+    """SSH into a DCOS node using the IP addresses to uninstall valkiria
+     :param ips: ip to connect
+     :type ips: [str]
+     :param option: SSH option
+     :type option: [str]
+     :param user: SSH user
+     :type user: str | None
+     :rtype: int
+     :returns: process return code
+     """
+
+    for ip in _get_ips_list(ips):
+        # _stop(ip, user, option, config_file)
+        option = _set_default_timeout(option)
+        ssh_options = util.get_ssh_options(config_file, option)
+        cmd = '''ssh {2}{0}@{1} ' if [ -d {6} ]; then
+                if [ -f ./valkiria.pid ]; then pkill -F valkiria.pid; rm -rf valkiria.pid;
+                fi
+                rm -rf {6}; rm ./valkiria.log;
+                fi ' '''.format(
+            user,
+            ip,
+            ssh_options,
+            constants.url_install,
+            constants.name,
+            constants.previous_path,
+            constants.end_path)
+        subprocess.call(cmd, shell=True)
+    return 0
+
+
+def _start(ips, user, option, config_file):
+    """SSH into a DCOS node using the IP addresses to start valkiria agent
+       :param ips: ip to connect
+       :type ips: [str]
+       :param option: SSH option
+       :type option: [str]
+       :param user: SSH user
+       :type user: str | None
+       :rtype: int
+       :returns: process return code
+       """
+    option = _set_default_timeout(option)
+    ssh_options = util.get_ssh_options(config_file, option)
+    for ip in _get_ips_list(ips):
+        cmd = '''ssh {2}{0}@{1} 'if [ ! -f ./valkiria.pid ]; then
+            nohup {3}/valkiria a 2> valkiria.log > /dev/null 2>&1 &
+            echo $! > valkiria.pid
+            else
+            echo Valkiria is currently running in {1}
+            fi' '''.format(
+            user,
+            ip,
+            ssh_options,
+            constants.end_path)
+        subprocess.call(cmd, shell=True)
+    return 0
+
+
+def _stop(ips, user, option, config_file):
+    """SSH into a DCOS node using the IP addresses to stop valkiria agent
+       :param ips: ip to connect
+       :type ips: [str]
+       :param option: SSH option
+       :type option: [str]
+       :param user: SSH user
+       :type user: str | None
+       :rtype: int
+       :returns: process return code
+       """
+    option = _set_default_timeout(option)
+    ssh_options = util.get_ssh_options(config_file, option)
+    for ip in _get_ips_list(ips):
+        cmd = '''ssh {2}{0}@{1} 'if [ -f ./valkiria.pid ]; then pkill -F valkiria.pid; rm -rf valkiria.pid;
+            else
+                echo Valkiria is currently not running in {1}.
+            fi' '''.format(
+            user,
+            ip,
+            ssh_options)
+        subprocess.call(cmd, shell=True)
+    return 0
+
+
+def _status(ips, user, option, config_file):
+    """SSH into a DCOS node using the IP addresses to check valkiria agent status
+       :param ips: ip to connect
+       :type ips: [str]
+       :param option: SSH option
+       :type option: [str]
+       :param user: SSH user
+       :type user: str | None
+       :rtype: int
+       :returns: process return code
+       """
+    option = _set_default_timeout(option)
+    ssh_options = util.get_ssh_options(config_file, option)
+    for ip in _get_ips_list(ips):
+        cmd = '''ssh {2}{0}@{1} 'if [ ! -f ./valkiria.pid ]; then
+            echo Valkiria is currently stopped in {1}
+            else
+            echo Valkiria is currently running in {1}
+            fi' '''.format(
+            user,
+            ip,
+            ssh_options,
+            constants.end_path)
         subprocess.call(cmd, shell=True)
     return 0
 
@@ -160,7 +321,6 @@ def _tasks(ips, user, option, config_file):
             ip,
             ssh_options,
             constants.url_list)
-        emitter.publish(DefaultError("Running `{}`".format(cmd)))
         try:
             resp = json.loads(subprocess.check_output(cmd, shell=True).decode('utf-8'))
             services_type_without_tasks = 0
@@ -205,7 +365,6 @@ def _kill(ip, user, option, config_file, task_id):
             ip,
             ssh_options,
             kill_options)
-        emitter.publish(DefaultError("Running `{}`".format(cmd)))
         try:
             resp = json.loads(subprocess.check_output(cmd, shell=True).decode('utf-8'))
             if resp['status'] == 'Success':

@@ -1,7 +1,23 @@
 DCOS Valkiria Subcommand
 ==========================
 
-Valkiria DCOS subcommand
+The Valkiria DCOS subcommand allow you to install agents of https://github.com/Stratio/valkiria/ and do the next operations to interact with them:
+
+- install Establish an SSH connection to the master or agent nodes and install Valkiria on them.
+
+- uninstall Establish an SSH connection to the master or agent nodes and uninstall Valkiria on them
+
+- tasks Establish an SSH connection to the master or agent nodes and list the killables tasks.
+
+- kill Establish an SSH connection to the master or agent nodes and kill the task with a specific taskId.
+
+- start Establish an SSH connection to the master or agent nodes and start the Valkiria agent process on them.
+
+- stop Establish an SSH connection to the master or agent nodes and stop the Valkiria agent process on them.
+
+- status Establish an SSH connection to the master or agent nodes and get the status of the Valkiria agent process on them.
+
+
 
 Setup
 -----
