@@ -1,9 +1,10 @@
-version = '0.1.0'
+version = '0.1.0-SNAPSHOT'
+valkiria_version = '0.1.0'
 """DCOS valkiria version"""
-url_install = 'http://sodio.stratio.com/nexus/content/sites/paas/valkiria/{0}/valkiria-{0}.tar.gz'.format(version)
+url_install = 'http://sodio.stratio.com/nexus/content/sites/paas/valkiria/{0}/valkiria-{0}.tar.gz'.format(valkiria_version)
 url_list = 'http://127.0.0.1:9050/api/v1/list'
-name = 'valkiria-{0}.tar.gz'.format(version)
-previous_path = 'root/workspace/Release/Infra/valkiria{0}/target/bin/valkiria'.format(version)
+name = 'valkiria-{0}.tar.gz'.format(valkiria_version)
+previous_path = 'root/workspace/Release/Infra/valkiria{0}/target/bin/valkiria'.format(valkiria_version)
 end_path = '/opt/stratio/valkiria'
 services_type = ['daemon', 'docker', 'service']
 default_timeout = ['ConnectTimeout=10']
