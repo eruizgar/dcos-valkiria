@@ -16,7 +16,7 @@
 
     <groupId>com.stratio.paas</groupId>
     <artifactId>dcos-cli-command-test</artifactId>
-    <version>0.1.0-RC1</version>
+    <version>0.1.0-RC2-SNAPSHOT</version>
     <name>dcos-cli-command-test-cucumber</name>
 
     <build>
