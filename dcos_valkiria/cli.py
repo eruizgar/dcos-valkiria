@@ -20,6 +20,7 @@ Usage:
             [--user=<user>]
             (--ip=<ip-or-hostname>)
             (--task-id=<task-id>)
+            [--kill-executor=<kill-executor>]
     dcos valkiria start [--option SSHOPT=VAL ...]
             [--config-file=<path>]
             [--user=<user>]
@@ -60,6 +61,8 @@ Options:
         terminal.
     --ips=<"ip-or-iplist">
         Required: The ip list string in format "IP1,IP2..."
+    --kill-executor=<kill-executor>
+        Select if you want kill the executor (1), their tasks (2) or both of them (0). [default: 0]
     --user=<user>
         The SSH user, where the default user [default: root].
     --ip=<ip-or-hostname>
@@ -125,7 +128,7 @@ def _cmds():
 
         cmds.Command(
             hierarchy=['valkiria', 'kill'],
-            arg_keys=['--ip', '--user', '--option', '--config-file', '--task-id'],
+            arg_keys=['--ip', '--user', '--option', '--config-file', '--task-id', '--kill-executor'],
             function=_kill),
 
         cmds.Command(
@@ -314,7 +317,7 @@ def _tasks(ips, user, option, config_file):
     """
     option = _set_default_timeout(option)
     ssh_options = util.get_ssh_options(config_file, option)
-    table = PrettyTable(['Ip', 'TaskId'])
+    table = PrettyTable(['Ip', 'TaskId', 'ServiceType', 'FrameWork'])
     for ip in _get_ips_list(ips):
         cmd = '''ssh {2}{0}@{1} 'curl -sb -H {3}' '''.format(
             user,
@@ -329,9 +332,11 @@ def _tasks(ips, user, option, config_file):
                     xs = resp[service_type]
                     for x in xs:
                         if service_type == 'daemon':
-                            table.add_row([ip, x['Name']])
-                        elif service_type == 'service' or service_type == 'docker':
-                            table.add_row([ip, x['TaskName']])
+                            table.add_row([ip, x['Name'], service_type, '----'])
+                        elif service_type == 'service':
+                            table.add_row([ip, x['TaskName'], service_type, x['FrameWorkId']])
+                        elif service_type == 'docker':
+                            table.add_row([ip, x['TaskName'], service_type, x['FrameWorkName']])
                 except KeyError:
                     if services_type_without_tasks == 2:
                         table.add_row([ip, 'No tasks running'])
@@ -342,7 +347,7 @@ def _tasks(ips, user, option, config_file):
     return table
 
 
-def _kill(ip, user, option, config_file, task_id):
+def _kill(ip, user, option, config_file, task_id, kill_executor):
     """SSH into a DCOS node using the IP addresses found in master's
        state.json
      :param ip: ip to connect
@@ -357,8 +362,8 @@ def _kill(ip, user, option, config_file, task_id):
     option = _set_default_timeout(option)
     ssh_options = util.get_ssh_options(config_file, option)
     table = PrettyTable(header=False)
-    kill_options = "'{" + ''' "name":"{0}","killExecutor":0,"serviceType":0 '''.format(task_id).replace("\"",
-                                                                                                        "\\\"") + "}'"
+    kill_options = "'{" + ''' "name":"{0}","killExecutor":{1},"serviceType":0 '''.format(task_id, kill_executor).replace(
+        "\"", "\\\"") + "}'"
     if _valid_ip_format(ip):
         cmd = '''ssh {2}{0}@{1} "curl  -sb -H -X POST -d {3} http://127.0.0.1:9050/api/v1/valkiria " '''.format(
             user,
